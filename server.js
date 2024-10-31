@@ -1,13 +1,9 @@
 const express = require('express');
-const bodyParser = require('body-parser');
 const axios = require('axios');
 const si = require('systeminformation'); // Mengimpor modul systeminformation
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Middleware untuk parsing JSON
-app.use(bodyParser.json());
 
 // Fungsi untuk mendapatkan informasi CPU dan memori
 async function getSystemInfo() {
@@ -71,27 +67,30 @@ async function handleSystemInfo() {
     };
 }
 
-// Pemetaan fitur ke fungsi
-const featureHandlers = {
-    openai: handleOpenAI,
-    tiktok: handleTikTok,
-    'system-info': handleSystemInfo
-};
-
 // Endpoint untuk menangani permintaan berdasarkan fitur
-app.post('/', async (req, res) => {
-    const { feature, text, url } = req.body;
+app.get('/feature', async (req, res) => {
+    const { fitur, text, url } = req.query;
 
     try {
-        const handler = featureHandlers[feature];
-        if (!handler) {
-            return res.status(404).json({
-                status: false,
-                message: "Feature not found"
-            });
+        let result;
+
+        switch (fitur) {
+            case 'openai':
+                result = await handleOpenAI(text);
+                break;
+            case 'tiktok':
+                result = await handleTikTok(url);
+                break;
+            case 'system-info':
+                result = await handleSystemInfo();
+                break;
+            default:
+                return res.status(404).json({
+                    status: false,
+                    message: "Feature not found"
+                });
         }
 
-        const result = await handler(text || url); // Panggil fungsi yang sesuai
         res.json(result);
     } catch (error) {
         console.error('Error processing request:', error.message);
