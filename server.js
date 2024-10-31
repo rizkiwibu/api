@@ -24,100 +24,80 @@ async function getSystemInfo() {
     };
 }
 
-// Endpoint untuk menerima permintaan POST di /openai
-app.get('/openai', async (req, res) => {
-    const { text } = req.body;
-
-    // Memeriksa apakah 'text' ada di dalam body permintaan
+// Fungsi untuk OpenAI
+async function handleOpenAI(text) {
     if (!text) {
-        return res.status(400).json({
-            status: false,
-            message: "Text is required"
-        });
+        throw new Error("Text is required");
     }
 
-    try {
-        // Menggunakan API dari widipe.com
-        const response = await axios.get(`https://widipe.com/openai?text=${encodeURIComponent(text)}`);
-
-        // Memeriksa apakah response memiliki data yang diharapkan
-        if (response.data && response.data.result) {
-            // Mengembalikan hasil sesuai format yang diinginkan
-            res.json({
-                status: true,
-                creator: "rizki",  // Ganti creator dengan "Iky"
-                result: response.data.result
-            });
-        } else {
-            // Jika tidak ada hasil yang diharapkan
-            res.status(500).json({
-                status: false,
-                message: "Unexpected response format from the API."
-            });
-        }
-    } catch (error) {
-        console.error('Error fetching data from API:', error.message);
-        res.status(500).json({
-            status: false,
-            message: "An error occurred while processing your request."
-        });
-    }
-});
-
-// Endpoint untuk mendapatkan informasi sistem
-app.get('/system-info', async (req, res) => {
-    try {
-        const systemInfo = await getSystemInfo(); // Mendapatkan informasi sistem
-        res.json({
+    const response = await axios.get(`https://widipe.com/openai?text=${encodeURIComponent(text)}`);
+    if (response.data && response.data.result) {
+        return {
             status: true,
-            memory: systemInfo.memory,
-            cpu: systemInfo.cpu
-        });
-    } catch (error) {
-        console.error('Error fetching system information:', error.message);
-        res.status(500).json({
-            status: false,
-            message: "An error occurred while fetching system information."
-        });
+            creator: "rizki",
+            result: response.data.result
+        };
+    } else {
+        throw new Error("Unexpected response format from the API.");
     }
-});
+}
 
-// Endpoint untuk mengunduh video TikTok
-app.post('/tiktok', async (req, res) => {
-    const { url } = req.body;
-
-    // Memeriksa apakah 'url' ada di dalam body permintaan
+// Fungsi untuk TikTok
+async function handleTikTok(url) {
     if (!url) {
-        return res.status(400).json({
-            status: false,
-            message: "URL is required"
-        });
+        throw new Error("URL is required");
     }
+
+    const response = await axios.get(`https://widipe.com/download/tiktokdl?url=${encodeURIComponent(url)}`);
+    if (response.data && response.data.result) {
+        return {
+            status: true,
+            code: 200,
+            creator: "rizkiirfan",
+            result: response.data.result
+        };
+    } else {
+        throw new Error("Unexpected response format from the API.");
+    }
+}
+
+// Fungsi untuk System Info
+async function handleSystemInfo() {
+    const systemInfo = await getSystemInfo();
+    return {
+        status: true,
+        memory: systemInfo.memory,
+        cpu: systemInfo.cpu
+    };
+}
+
+// Pemetaan fitur ke fungsi
+const featureHandlers = {
+    openai: handleOpenAI,
+    tiktok: handleTikTok,
+    'system-info': handleSystemInfo
+};
+
+// Endpoint untuk menangani permintaan berdasarkan fitur
+app.post('/', async (req, res) => {
+    const { feature, text, url } = req.body;
 
     try {
-        // Menggunakan API dari widipe.com untuk mengunduh video TikTok
-        const response = await axios.get(`https://widipe.com/download/tiktokdl?url=${encodeURIComponent(url)}`);
-
-        // Memeriksa apakah response memiliki data yang diharapkan
-        if (response.data && response.data.result) {
-            res.json({
-                status: true,
-                code: 200,
-                creator: "rizkiirfan",
-                result: response.data.result
-            });
-        } else {
-            // Jika tidak ada hasil yang diharapkan
-            res.status(500).json({
+        const handler = featureHandlers[feature];
+        if (!handler) {
+            return res.status(404).json({
                 status: false,
-                message: "Unexpected response format from the API."
+                message: "Feature not found"
             });
         }
+
+        const result = await handler(text || url); // Panggil fungsi yang sesuai
+        res.json(result);
     } catch (error) {
-        console.error('Error fetching TikTok video:', error.message);
+        console.error('Error processing request:', error.message);
         res.status(500).json({
             status: false,
-            message: "An error occurred while processing your request."
+            message: error.message || "An error occurred while processing your request."
         });
     }
 });
