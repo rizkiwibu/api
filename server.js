@@ -25,7 +25,7 @@ async function getSystemInfo() {
 }
 
 // Endpoint untuk menerima permintaan POST di /openai
-app.post('/openai', async (req, res) => {
+app.get('/openai', async (req, res) => {
     const { text } = req.body;
 
     // Memeriksa apakah 'text' ada di dalam body permintaan
